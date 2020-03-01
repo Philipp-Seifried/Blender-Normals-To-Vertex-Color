@@ -94,32 +94,32 @@ class NormalsToVertexColors(bpy.types.Operator):
         elif prop == '-Z':
             result[index] = -vec[2]
 
-
     def execute(self, context):
         current_obj = bpy.context.active_object 
         mesh = current_obj.data
-        if mesh.vertex_colors:
-            vcol_layer = mesh.vertex_colors.active
-        else:
-            vcol_layer = mesh.vertex_colors.new()
+        if not mesh.vertex_colors:
+            mesh.vertex_colors.new()
 
-        for loop_index, loop in enumerate(mesh.loops):
-                loop_vert_index = loop.vertex_index
-                normal = mesh.vertices[loop_vert_index].normal.copy()
-                if (self.space == 'WORLD'):
-                    normal = current_obj.matrix_world.to_3x3() @ normal
-                    normal.normalize()
+        mesh.calc_normals_split()
+        mesh.update()
+        for poly in mesh.polygons:
+                for loop_index in poly.loop_indices:
+                    normal = mesh.loops[loop_index].normal.copy()
+                    if (self.space == 'WORLD'):
+                        normal = current_obj.matrix_world.to_3x3() @ normal
+                        normal.normalize()
 
-                orig_normal = normal.copy()
-                self.swizzle(normal, orig_normal, 0, self.swizzle_x)
-                self.swizzle(normal, orig_normal, 1, self.swizzle_y)
-                self.swizzle(normal, orig_normal, 2, self.swizzle_z)
+                    orig_normal = normal.copy()
+                    self.swizzle(normal, orig_normal, 0, self.swizzle_x)
+                    self.swizzle(normal, orig_normal, 1, self.swizzle_y)
+                    self.swizzle(normal, orig_normal, 2, self.swizzle_z)
 
-                color = (normal * 0.5) + Vector((0.5,) * 3)
-                color.resize_4d()
-                vcol_layer.data[loop_index].color = color
+                    color = (normal * 0.5) + Vector((0.5,) * 3)
+                    color.resize_4d()
 
-        mesh.vertex_colors.active = vcol_layer
+                    mesh.vertex_colors.active.data[loop_index].color = color
+
+        mesh.free_normals_split()
         mesh.update()
 
         return {'FINISHED'}
@@ -127,7 +127,6 @@ class NormalsToVertexColors(bpy.types.Operator):
 
 def menu_func(self, context):
     self.layout.operator(NormalsToVertexColors.bl_idname)
-
 
 def register():
     bpy.utils.register_class(NormalsToVertexColors)
